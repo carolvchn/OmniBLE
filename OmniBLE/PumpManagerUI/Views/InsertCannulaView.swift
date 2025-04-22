@@ -81,9 +81,6 @@ struct InsertCannulaView: View {
         .navigationBarTitle(LocalizedString("Insert Cannula", comment: "navigation bar title for insert cannula"), displayMode: .automatic)
         .navigationBarBackButtonHidden(true)
         .navigationBarItems(trailing: cancelButton)
-        // disable iphone auto-lock when view is active
-        .onAppear(perform: {UIApplication.shared.isIdleTimerDisabled = true})
-        .onDisappear(perform: {UIApplication.shared.isIdleTimerDisabled = false})
     }
     
     
@@ -114,8 +111,6 @@ struct InsertCannulaView: View {
             }
             
         }
-        
-        
     }
     
     var cancelButton: some View {
@@ -135,26 +130,39 @@ struct InsertCannulaView: View {
     }
 
 }
+
 class MockCannulaInserter: CannulaInserter {
-    public func insertCannula(completion: @escaping (Result<TimeInterval,OmniBLEPumpManagerError>) -> Void) {
-        let mockDelay = TimeInterval(seconds: 3)
-        let result :Result<TimeInterval, OmniBLEPumpManagerError> = .success(mockDelay)
+    let mockError: Bool = false
+    let mockPodAlreadyPairedError: Bool = false
+
+    func insertCannula(completion: @escaping (Result<TimeInterval,OmniBLEPumpManagerError>) -> Void) {
+        let result :Result<TimeInterval, OmniBLEPumpManagerError>
+        if mockError {
+            if mockPodAlreadyPairedError {
+                // A podAlreadyPaired "error" should be treated as an immediate success
+                result = .failure(OmniBLEPumpManagerError.podAlreadyPaired)
+            } else {
+                // Others should display the error text and show Deactivate Pod & Retry options
+                result = .failure(OmniBLEPumpManagerError.noPodPaired)
+            }
+        } else {
+            let mockDelay = TimeInterval(seconds: 3)
+            result = .success(mockDelay)
+        }
         completion(result)
     }
-    
+
     func checkCannulaInsertionFinished(completion: @escaping (OmniBLEPumpManagerError?) -> Void) {
         completion(nil)
     }
-    
-    
+
+    var cannulaInsertionSuccessfullyStarted: Bool = false
 }
+
 struct InsertCannulaView_Previews: PreviewProvider {
     static var mockInserter = MockCannulaInserter()
     static var model = InsertCannulaViewModel(cannulaInserter: mockInserter)
     static var previews: some View {
         InsertCannulaView(viewModel: model)
- 
-
-        
     }
 }
